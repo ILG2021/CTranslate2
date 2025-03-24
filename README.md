@@ -8,6 +8,7 @@ https://github.com/OpenNMT/CTranslate2/issues/1856
 ## How to use
 
 CUDA version: 12.4
+
 CUDNN version: 9.6.0
 
 For windows:
