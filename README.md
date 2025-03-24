@@ -7,6 +7,9 @@ https://github.com/OpenNMT/CTranslate2/issues/1856
 
 ## How to use
 
+CUDA version: 12.4
+CUDNN version: 9.6.0
+
 For windows:
 
 Preparation:
@@ -31,6 +34,8 @@ cmake --build . --config Release --parallel 8 --verbose
 ```
 Then replace the ctranslate2.dll in the pip package with the new compiled one in Release folder
 
-For linux follow offical document below:
+For linux:
 
-https://opennmt.net/CTranslate2/installation.html#install-from-sources
+cmake -DBUILD_CLI=OFF -DWITH_CUDA=ON -DWITH_CUDNN=ON -DCUDA_DYNAMIC_LOADING=ON -DCUDA_NVCC_FLAGS="-Xfatbin=-compress-all" -DCUDA_ARCH_LIST="Common" -DOPENMP_RUNTIME=NONE -DWITH_MKL=OFF ..
+
+cmake --build . --config Release --parallel 8 --verbose
