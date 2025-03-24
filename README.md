@@ -30,3 +30,7 @@ cmake -DCMAKE_BUILD_TYPE=Release `
 cmake --build . --config Release --parallel 8 --verbose
 ```
 Then replace the ctranslate2.dll in the pip package with the new compiled one in Release folder
+
+For linux follow offical document below:
+
+https://opennmt.net/CTranslate2/installation.html#install-from-sources
