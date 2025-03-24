@@ -36,6 +36,8 @@ Then replace the ctranslate2.dll in the pip package with the new compiled one in
 
 For linux:
 
+```bash
 cmake -DBUILD_CLI=OFF -DWITH_CUDA=ON -DWITH_CUDNN=ON -DCUDA_DYNAMIC_LOADING=ON -DCUDA_NVCC_FLAGS="-Xfatbin=-compress-all" -DCUDA_ARCH_LIST="Common" -DOPENMP_RUNTIME=NONE -DWITH_MKL=OFF ..
 
 cmake --build . --config Release --parallel 8 --verbose
+```
