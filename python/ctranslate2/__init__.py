@@ -10,12 +10,30 @@ if sys.platform == "win32":
     module_name = sys.modules[__name__].__name__
     package_dir = str(files(module_name))
 
-    try:
-        os.add_dll_directory(package_dir)
-        os.add_dll_directory(f"{package_dir}/../_rocm_sdk_core/bin")
-        os.add_dll_directory(f"{package_dir}/../_rocm_sdk_libraries_custom/bin")
-    except (FileNotFoundError, OSError):
-        pass
+    # Keep the handles alive for as long as this module is loaded. Closing an
+    # add_dll_directory handle removes the directory from the DLL search path.
+    _dll_directory_handles = []
+    _dll_directories = [
+        package_dir,
+        f"{package_dir}/../_rocm_sdk_core/bin",
+        f"{package_dir}/../_rocm_sdk_libraries_custom/bin",
+    ]
+
+    for name, value in os.environ.items():
+        if name == "CUDA_PATH" or name.startswith("CUDA_PATH_V"):
+            _dll_directories.append(os.path.join(value, "bin"))
+
+    # Python 3.8+ no longer uses PATH for resolving extension-module
+    # dependencies. Add only PATH entries that actually contain cuDNN.
+    for path in os.environ.get("PATH", "").split(os.pathsep):
+        if path and os.path.isfile(os.path.join(path, "cudnn64_9.dll")):
+            _dll_directories.append(path)
+
+    for dll_directory in dict.fromkeys(map(os.path.normcase, _dll_directories)):
+        try:
+            _dll_directory_handles.append(os.add_dll_directory(dll_directory))
+        except (FileNotFoundError, OSError):
+            pass
 
     for library in glob.glob(os.path.join(package_dir, "*.dll")):
         ctypes.CDLL(library)

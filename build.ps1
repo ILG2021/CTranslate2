@@ -124,6 +124,7 @@ Require-File "$cudaPath/lib/x64/cudart.lib" "The CUDA development libraries are 
 Require-File "$cudaPath/include/cudnn.h" "Install cuDNN 9.x headers into CUDA_PATH/include."
 Require-File "$cudaPath/lib/x64/cudnn.lib" "Install cuDNN 9.x libraries into CUDA_PATH/lib/x64."
 Require-File "$cudaPath/bin/cudnn64_9.dll" "Install the cuDNN 9.x runtime into CUDA_PATH/bin."
+$cudnnRuntime = "$cudaPath/bin/cudnn64_9.dll"
 
 if (($env:PATH -split ';') -notcontains "$cudaPath\bin") {
     $env:PATH = "$cudaPath\bin;$env:PATH"
@@ -213,6 +214,10 @@ if ($missingOutputs) {
     throw "The CMake installation is incomplete; wheel packaging was stopped."
 }
 
+Write-Step "Copying the required cuDNN runtime into the Python package"
+Copy-Item -LiteralPath $cudnnRuntime -Destination "$installDir/cudnn64_9.dll" -Force
+Require-File "$installDir/cudnn64_9.dll" "The required cuDNN runtime could not be copied into the package."
+
 Write-Step "Building the wheel incrementally"
 $env:CTRANSLATE2_ROOT = $installDir
 $env:CMAKE_BUILD_PARALLEL_LEVEL = [string]$Jobs
@@ -250,16 +255,34 @@ finally {
 
 $extensionEntry = $entries | Where-Object { $_ -match '^ctranslate2/_ext.*\.pyd$' } | Select-Object -First 1
 $runtimeEntry = $entries | Where-Object { $_ -eq 'ctranslate2/ctranslate2.dll' } | Select-Object -First 1
+$cudnnEntry = $entries | Where-Object { $_ -eq 'ctranslate2/cudnn64_9.dll' } | Select-Object -First 1
 if (-not $extensionEntry) {
     throw "The wheel is incomplete: ctranslate2/_ext*.pyd is missing."
 }
 if (-not $runtimeEntry) {
     throw "The wheel is incomplete: ctranslate2/ctranslate2.dll is missing."
 }
+if (-not $cudnnEntry) {
+    throw "The wheel is incomplete: cudnn64_9.dll is missing."
+}
+
+Write-Step "Checking runtime DLL dependencies"
+$runtimeCheck = @"
+import ctypes
+import os
+
+cuda_bin = os.path.join(os.environ["CUDA_PATH"], "bin")
+handle = os.add_dll_directory(cuda_bin)
+ctypes.CDLL(r"$installDir/ctranslate2.dll")
+print("ctranslate2.dll and its direct dependencies loaded successfully")
+"@
+& $venvPython -c $runtimeCheck
+Assert-NativeCommand "Runtime DLL dependency check"
 
 Write-Host "`nBuild completed successfully." -ForegroundColor Green
 Write-Host "Wheel: $($wheel.FullName)"
 Write-Host ("Size : {0:N2} MB" -f ($wheel.Length / 1MB))
 Write-Host "Found: $extensionEntry"
 Write-Host "Found: $runtimeEntry"
+Write-Host "Found: $cudnnEntry"
 Write-Host "Existing object files were preserved; unchanged sources will not be recompiled."

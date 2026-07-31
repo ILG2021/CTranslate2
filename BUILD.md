@@ -41,7 +41,9 @@ Set-ExecutionPolicy -Scope Process Bypass; .\build.ps1
 5. 增量编译 C++/CUDA；未更新的 `.obj` 不会重新编译。
 6. 安装 `ctranslate2.dll`、头文件和导入库。
 7. 增量构建 wheel。
-8. 检查 wheel 同时包含 `_ext*.pyd` 和 `ctranslate2.dll`。
+8. 将 `cudnn64_9.dll` 从 CUDA 目录复制到 Python 包目录。
+9. 检查 wheel 同时包含 `_ext*.pyd`、`ctranslate2.dll` 和 `cudnn64_9.dll`。
+10. 实际加载 `ctranslate2.dll`，确认 CUDA/cuDNN 直接依赖可以解析。
 
 生成的 wheel 位于：
 
@@ -53,4 +55,4 @@ python\dist\
 
 不需要打开 Developer PowerShell。脚本对 Visual Studio 环境的修改只作用于本次脚本进程，不会永久修改用户或系统 PATH。
 
-CUDA/cuDNN 自身的 NVIDIA DLL 默认不会打进 wheel，目标机器仍需安装兼容的 CUDA 和 cuDNN。
+脚本会把 `cudnn64_9.dll` 打进 wheel；其他 CUDA/cuDNN DLL 仍不打包，目标机器需要安装兼容的 CUDA/cuDNN。`nvcuda.dll` 由 NVIDIA 显卡驱动提供，也不会打包。
