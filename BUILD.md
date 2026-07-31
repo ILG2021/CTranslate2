@@ -17,11 +17,14 @@ Preparation:
 
 1. install visual studio 2022 community
 
-2. install [intel mkl library](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl-download.html)
+2. pip install mkl-devel
+
+3. git submodule update --init --recursive
 
 Build:
 
 ```bash
+mkdir build ; cd build
 cmake -DCMAKE_BUILD_TYPE=Release `
       -DBUILD_CLI=OFF `
       -DWITH_CUDA=ON `
