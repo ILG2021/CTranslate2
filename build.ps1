@@ -42,6 +42,59 @@ function Require-File {
     }
 }
 
+function Import-VisualStudioEnvironment {
+    if (Get-Command "cl.exe" -ErrorAction SilentlyContinue) {
+        Write-Host "Visual Studio C++ environment is already available."
+        return
+    }
+
+    Write-Step "Locating Visual Studio 2022 C++ tools"
+    $vsDevCmd = $null
+    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+    if (Test-Path -LiteralPath $vswhere -PathType Leaf) {
+        $installationPath = & $vswhere -latest -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+        if ($LASTEXITCODE -eq 0 -and $installationPath) {
+            $candidate = Join-Path ($installationPath | Select-Object -First 1) "Common7\Tools\VsDevCmd.bat"
+            if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+                $vsDevCmd = $candidate
+            }
+        }
+    }
+
+    if (-not $vsDevCmd) {
+        $editions = @("Community", "Professional", "Enterprise", "BuildTools")
+        foreach ($edition in $editions) {
+            $candidate = "${env:ProgramFiles}\Microsoft Visual Studio\2022\$edition\Common7\Tools\VsDevCmd.bat"
+            if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+                $vsDevCmd = $candidate
+                break
+            }
+        }
+    }
+
+    if (-not $vsDevCmd) {
+        throw "Visual Studio 2022 C++ tools were not found. Install the 'Desktop development with C++' workload."
+    }
+
+    $cmdLine = "call `"$vsDevCmd`" -no_logo -arch=x64 -host_arch=x64 >nul && set"
+    $environmentLines = & $env:ComSpec /d /s /c $cmdLine
+    Assert-NativeCommand "Visual Studio environment initialization"
+
+    foreach ($line in $environmentLines) {
+        $separator = $line.IndexOf('=')
+        if ($separator -gt 0) {
+            $name = $line.Substring(0, $separator)
+            $value = $line.Substring($separator + 1)
+            [Environment]::SetEnvironmentVariable($name, $value, "Process")
+        }
+    }
+
+    Require-Command "cl.exe" "Visual Studio was found, but its x64 C++ environment could not be initialized."
+    Write-Host "Visual Studio x64 C++ environment was loaded for this build process only."
+}
+
 $repoPath = $PSScriptRoot
 $repo = $repoPath.Replace('\', '/')
 $buildDir = "$repo/build"
@@ -54,7 +107,7 @@ if (-not [Environment]::Is64BitOperatingSystem) {
     throw "A 64-bit Windows installation is required."
 }
 
-Require-Command "cl.exe" "Run this script from 'Developer PowerShell for VS 2022'."
+Import-VisualStudioEnvironment
 Require-Command "cmake.exe" "Install CMake and add it to PATH."
 Require-Command "nvcc.exe" "Install CUDA Toolkit 12.4 and add its bin directory to PATH."
 Require-Command "git.exe" "Install Git and add it to PATH."
@@ -210,4 +263,3 @@ Write-Host ("Size : {0:N2} MB" -f ($wheel.Length / 1MB))
 Write-Host "Found: $extensionEntry"
 Write-Host "Found: $runtimeEntry"
 Write-Host "Existing object files were preserved; unchanged sources will not be recompiled."
-
